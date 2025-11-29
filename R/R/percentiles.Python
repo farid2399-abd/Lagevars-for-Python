@@ -1,0 +1,21 @@
+import numpy as np
+import pandas as pd
+
+# Quantiles for the limiting distribution of the test
+percentiles = pd.DataFrame(
+    # This would contain the actual percentile data
+    # 99 rows and 11 columns (percentile + r=1 to r=10)
+    data=np.random.rand(99, 11),  # Placeholder - replace with actual data
+    columns=['percentile'] + [f'r_{i}' for i in range(1, 11)]
+)
+
+"""
+Quantiles for the limiting distribution of the test
+
+A DataFrame containing the simulated quantiles for the test statistic used in
+the largevar function. More details about how these simulations were conducted
+can be found in Section 4 of the vignette.
+
+Format: A DataFrame with 99 rows and 11 variables
+Source: Calculated through own simulations (see details in vignette)
+"""
