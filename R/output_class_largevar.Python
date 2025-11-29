@@ -1,0 +1,119 @@
+class StatTest:
+    """
+    Class for storing and displaying cointegration test results
+    
+    Represents the output of the largevar function with custom display formatting
+    """
+    
+    def __init__(self, statistic, eigenvalues, significance_test, function_inputs, plot_values):
+        self.statistic = statistic
+        self.eigenvalues = eigenvalues
+        self.significance_test = significance_test
+        self.function_inputs = function_inputs
+        self.plot_values = plot_values
+    
+    def __repr__(self):
+        """String representation of the test results"""
+        return self._format_output()
+    
+    def __str__(self):
+        """String representation for printing"""
+        return self._format_output()
+    
+    def _format_output(self):
+        """Format the output to match R's display style"""
+        output_lines = []
+        output_lines.append("Output for the largevar function")
+        output_lines.append("=================================")
+        
+        # Add test configuration info
+        t_val = self.function_inputs['t']
+        n_val = self.function_inputs['N']
+        output_lines.append(f"Cointegration test for high-dimensional VAR(k)  T={t_val} N={n_val}")
+        output_lines.append("")
+        
+        # Add significance table if r <= 10
+        if self.function_inputs['r'] <= 10:
+            sig_row = self.significance_test.get('significance_row', {})
+            if sig_row:
+                # Format the significance row
+                formatted_row = {}
+                for key, value in sig_row.items():
+                    if isinstance(value, (int, float)):
+                        formatted_row[key] = round(value, 2)
+                    else:
+                        formatted_row[key] = value
+                
+                # Create a simple table display
+                table_line = " | ".join([f"{key}: {value}" for key, value in formatted_row.items()])
+                output_lines.append(table_line)
+            
+            output_lines.append("")
+            output_lines.append("If the test statistic is larger than the quantile, reject H0.")
+            output_lines.append("===============================================================")
+        
+        # Add test statistic and p-value
+        output_lines.append(f"Test statistic: {self.statistic}")
+        p_val = self.significance_test.get('p_value', 'N/A')
+        output_lines.append(f"The p-value is {p_val}")
+        
+        # Add decision if r <= 10
+        if self.function_inputs['r'] <= 10:
+            decision = self.significance_test.get('boolean_decision', 'N/A')
+            output_lines.append(f"Decision about H0: {decision}")
+        
+        return "\n".join(output_lines)
+    
+    def summary(self):
+        """Alternative method to display summary (similar to R's print)"""
+        print(self._format_output())
+    
+    def get_results(self):
+        """Return all results as a dictionary for programmatic access"""
+        return {
+            'statistic': self.statistic,
+            'eigenvalues': self.eigenvalues,
+            'significance_test': self.significance_test,
+            'function_inputs': self.function_inputs,
+            'plot_values': self.plot_values
+        }
+
+
+# Example usage:
+def create_stat_test_example():
+    """Create an example StatTest object for demonstration"""
+    return StatTest(
+        statistic=2.345,
+        eigenvalues=np.array([0.85, 0.72, 0.45, 0.23]),
+        significance_test={
+            'significance_row': {
+                '10% Crit. value': 1.645,
+                '5% Crit. value': 1.960, 
+                '1% Crit. value': 2.576,
+                'Test stat.': 2.345
+            },
+            'p_value': 0.019,
+            'boolean_decision': 1
+        },
+        function_inputs={'k': 1, 'r': 1, 'N': 4, 't': 100},
+        plot_values=None
+    )
+
+
+# Example of how it would be used:
+if __name__ == "__main__":
+    # Create example result
+    result = create_stat_test_example()
+    
+    # Display formatted output (automatically called when printing)
+    print(result)
+    print("\n" + "="*50 + "\n")
+    
+    # Or use the summary method
+    result.summary()
+    print("\n" + "="*50 + "\n")
+    
+    # Access individual components
+    print(f"Test statistic: {result.statistic}")
+    print(f"Eigenvalues: {result.eigenvalues}")
+    print(f"Function inputs: {result.function_inputs}")
