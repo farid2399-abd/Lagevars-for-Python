@@ -1,0 +1,145 @@
+import numpy as np
+from typing import Tuple
+
+def largevar_skeleton(data: np.ndarray, k: int = 1, r: int = 1, 
+                     fin_sample_corr: bool = False) -> float:
+    """
+    Internal skeleton function for cointegration test (simulation version)
+    
+    Overview:
+    This is the optimized "skeleton" version of the largevar function used 
+    within simulation functions for faster runtime. For actual cointegration 
+    testing, use the main largevar function.
+    
+    Parameters:
+    -----------
+    data : np.ndarray
+        A numeric matrix where columns contain individual time series to be
+        examined for cointegrating relationships
+    k : int, optional
+        Number of lags to employ in VECM form (default: 1)
+    r : int, optional  
+        Number of cointegrating relationships imposed on H1 hypothesis (default: 1)
+    fin_sample_corr : bool, optional
+        Flag indicating whether to apply finite sample correction to test 
+        statistic (default: False)
+    
+    Returns:
+    --------
+    float
+        The test statistic value
+    """
+    
+    # Extract parameters from data dimensions
+    ss = data.shape
+    tau = ss[0]  # number of time periods
+    t = tau - 1
+    N = ss[1]    # number of time series
+    
+    # Initialize matrices for transformed data
+    X_tilde = np.zeros((N, t))
+    dX = np.zeros((N, t))
+    
+    # Transform data: de-trend and difference
+    for i in range(t):
+        X_tilde[:, i] = (data[i, :] - ((i) / t) * 
+                         (data[tau-1, :] - data[0, :]))  # Step 1: De-trend with time shift
+        dX[:, i] = data[i + 1, :] - data[i, :]  # Difference the data
+    
+    # Branch based on lag order k
+    if k == 1:
+        # Step 2: De-mean data
+        R0 = np.zeros((N, t))
+        R1 = np.zeros((N, t))
+        
+        meanvec_tilde = np.mean(X_tilde, axis=1)
+        R1 = X_tilde - meanvec_tilde[:, np.newaxis]
+        
+        meanvec_d = np.mean(dX, axis=1)  
+        R0 = dX - meanvec_d[:, np.newaxis]
+        
+        # Calculate sample moment matrices
+        S00 = R0 @ R0.T
+        Skk = R1 @ R1.T
+        S0k = R0 @ R1.T
+        Sk0 = R1 @ R0.T
+        
+    else:
+        # k > 1: Create cyclic lag matrix
+        m = np.ones((t-1, t-1))
+        m = m - np.tril(m, -1) - np.triu(m, 1)
+        m = np.vstack([np.zeros(t-1), m])
+        m = np.column_stack([m, np.zeros(t)])
+        m[0, t-1] = 1
+        
+        # Initialize variable matrices for regressions
+        Z1 = np.ones((N * (k - 1) + 1, t))
+        Zk = X_tilde.copy()
+        
+        # Create X_{t-k} based on VECM form using cyclic lag operator
+        for i in range(1, k):
+            Zk = Zk @ m.T
+        
+        # Create lagged differences with cyclic lag operator
+        cyclic_lag = dX.copy()
+        for j in range(1, k):
+            cyclic_lag = cyclic_lag @ m.T
+            start_idx = N * (j - 1)
+            end_idx = N * j
+            Z1[start_idx:end_idx, :] = cyclic_lag
+        
+        # Stacked regressions to get residuals
+        M11 = Z1 @ Z1.T / t
+        M11_inv = np.linalg.inv(M11)
+        
+        R0 = dX - (dX @ Z1.T / t) @ M11_inv @ Z1
+        Rk = Zk - (Zk @ Z1.T / t) @ M11_inv @ Z1
+        
+        # Calculate sample moment matrices
+        S00 = R0 @ R0.T
+        Skk = Rk @ Rk.T
+        S0k = R0 @ Rk.T
+        Sk0 = Rk @ R0.T
+    
+    # Calculate canonical correlations
+    try:
+        Skk_inv = np.linalg.inv(Skk)
+        S00_inv = np.linalg.inv(S00)
+        can_corr_mat = Skk_inv @ Sk0 @ S00_inv @ S0k
+    except np.linalg.LinAlgError:
+        # Use pseudo-inverse if matrices are singular
+        Skk_inv = np.linalg.pinv(Skk)
+        S00_inv = np.linalg.pinv(S00)
+        can_corr_mat = Skk_inv @ Sk0 @ S00_inv @ S0k
+    
+    # Get eigenvalues and sort in descending order
+    ev_values = np.linalg.eigvals(can_corr_mat)
+    ev_values = np.sort(ev_values)[::-1]  # Sort descending
+    
+    # Step 4: Form the test statistic
+    loglambda = np.log(np.ones(len(ev_values)) - ev_values)
+    NT = np.sum(loglambda[:r])
+    
+    # Apply finite sample correction if requested
+    if not fin_sample_corr:
+        p = 2
+        q = t / N - k
+    else:
+        p = 2 - 2 / N
+        q = t / N - k - 2 / N
+    
+    # Calculate transformation parameters
+    lambda_m = (1 / ((p + q) ** 2) * 
+                ((np.sqrt(p * (p + q - 1)) - np.sqrt(q)) ** 2))
+    lambda_p = (1 / ((p + q) ** 2) * 
+                ((np.sqrt(p * (p + q - 1)) + np.sqrt(q)) ** 2))
+    
+    c_1 = np.log(1 - lambda_p)
+    c_2 = -((2 ** (2/3) * lambda_p ** (2/3)) / 
+           (((1 - lambda_p) ** (1/3)) * ((lambda_p - lambda_m) ** (1/3)))) * \
+           ((p + q) ** (-2/3))
+    
+    # Final test statistic
+    LR_nt = (NT - r * c_1) / ((N ** (-2/3)) * c_2)
+    
+    return LR_nt
