@@ -1,0 +1,70 @@
+import numpy as np
+from typing import Union, Optional
+import warnings
+
+def validate_input_simfun(N: int, tau: int, stat_value: float, k: int, r: int, 
+                         fin_sample_corr: bool, sim_num: int, seed: Optional[int] = None) -> None:
+    """
+    Input validator for simulation function
+    
+    Overview:
+    This internal function verifies the appropriateness of parameters 
+    provided to the simulation function.
+    
+    Parameters:
+    N : int
+        Number of time series to simulate in the system
+    tau : int
+        Length of each time series to be generated
+    stat_value : float
+        Test statistic value for p-value calculation
+    k : int
+        Number of lags to include in VECM specification (default: 1)
+    r : int
+        Number of cointegrating relationships specified under H1 hypothesis (default: 1)
+    fin_sample_corr : bool
+        Flag indicating whether finite sample adjustment should be applied
+    sim_num : int
+        Number of simulation iterations to execute
+    seed : int, optional
+        Random seed for reproducibility (default: None)
+    
+    Returns: None, Returns nothing if inputs are valid, raises exceptions otherwise.
+    
+    Notes: Internal function - not intended for direct user calls.
+    """
+    
+    # Primary input validation checks
+    if N is None or not isinstance(N, (int, np.integer)) or np.size(N) != 1 or N <= 0:
+        raise ValueError("`N` should be a positive integer value.")
+    
+    if tau is None or not isinstance(tau, (int, np.integer)) or np.size(tau) != 1 or tau <= 0:
+        raise ValueError("`tau` should be a positive integer value.")
+    
+    if stat_value is None or not isinstance(stat_value, (int, float)) or np.size(stat_value) != 1:
+        raise ValueError("`stat_value` should be a single numeric value.")
+    
+    if not isinstance(k, (int, np.integer)) or np.size(k) != 1 or k <= 0:
+        raise ValueError("`k` should be a positive integer value.")
+    
+    if not isinstance(r, (int, np.integer)) or np.size(r) != 1 or r <= 0:
+        raise ValueError("`r` should be a positive integer value.")
+    
+    if not isinstance(sim_num, (int, np.integer)) or np.size(sim_num) != 1 or sim_num <= 0:
+        raise ValueError("`sim_num` should be a positive integer value.")
+    
+    if not isinstance(fin_sample_corr, bool) or np.size(fin_sample_corr) != 1:
+        raise ValueError("`fin_sample_corr` should be a boolean value (True or False).")
+    
+    if seed is not None and (not isinstance(seed, (int, np.integer)) or np.size(seed) != 1 or seed < 0):
+        raise ValueError("`seed` should be a non-negative integer if provided.")
+    
+    # Secondary validation checks
+    if k >= ((tau - 1) / N) - 1:
+        raise ValueError("`k` exceeds allowable limits, verify dimension constraints")
+    
+    if r > N:
+        raise ValueError("`r` cannot exceed the count of variables in your dataset.")
+    
+    if sim_num > 500:
+        warnings.warn("Simulation process may take multiple minutes to complete")
