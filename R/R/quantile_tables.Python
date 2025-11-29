@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+
+def quantile_tables(r: int = 1) -> pd.DataFrame:
+    """
+    Creates the quantile table output for largevar function
+    
+    Outputs the quantile tables from the package's corresponding documentation.
+    
+    Parameters:
+    -----------
+    r : int
+        Which partial sum the quantile table should be returned for. 
+        Only r <= 10 is available. Default is 1.
+    
+    Returns:
+    --------
+    pd.DataFrame
+        A numeric matrix with quantile values
+    """
+    
+    # Validation checks
+    if not isinstance(r, int) or not (1 <= r <= 10):
+        raise ValueError("`r` must be a positive integer between 1 and 10.")
+    
+    # Get percentiles data (placeholder - replace with actual data)
+    # In a real implementation, this would load from a package data file
+    percentiles = _load_percentiles_data()
+    
+    # Extract the relevant column for the specified r
+    values = np.concatenate([[-np.inf], percentiles.iloc[:, r].values])
+    
+    # Reshape into 10x10 matrix
+    quant_table = values.reshape(10, 10).T
+    
+    # Set row and column names
+    quant_df = pd.DataFrame(
+        quant_table,
+        index=[f"0.{i}" for i in range(10)],  # 0.0, 0.1, ..., 0.9
+        columns=[str(i) for i in range(10)]    # 0, 1, ..., 9
+    )
+    
+    return quant_df
+
+def _load_percentiles_data() -> pd.DataFrame:
+    """
+    Internal function to load percentiles data
+    
+    In a real package, this would load from an internal data file
+    """
+    # Placeholder - replace with actual data loading
+    # This creates dummy data for demonstration
+    data = np.random.randn(99, 11)
+    return pd.DataFrame(data, columns=['percentile'] + [f'r_{i}' for i in range(1, 11)])
+
+# Example usage
+if __name__ == "__main__":
+    # Get quantile table for r=3
+    table = quantile_tables(r=3)
+    print(table)
